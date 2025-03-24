@@ -1,0 +1,137 @@
+#include "ACS712.h"
+
+#include <Wire.h>
+#include <PZEM004Tv30.h>
+
+// Hardware Serial2 is only available on certain boards.
+// Example: Arduino MEGA 2560
+
+// Uncomment these lines and replace with your credentials to connect to WiFi
+
+
+ // Uncomment to use WiFiManager
+
+int load1;
+// Constants for ACS712
+const int acsPin = 34; // Pin untuk sensor arus ACS
+const int voltagePin = 35; // Pin untuk sensor tegangan
+
+ACS712 ACS(acsPin, 5, 1023, 66); // Initialize ACS712 for ESP32, using 30A sensor (66 mV per A)
+float arus;
+float rawVoltage;
+  float mentah;
+  float result;
+// Variables for PZEM004T sensor
+float voltageLevel;
+float voltage;
+float current;
+float power;
+float energy;
+float frequency;
+float pf;
+
+#if defined(ESP32)
+PZEM004Tv30 pzem(Serial2, 16, 17); // Define RX/TX pins for PZEM on ESP32
+#else
+PZEM004Tv30 pzem(Serial2);
+#endif
+
+void setup() {
+  Serial.begin(115200);
+ 
+  Serial.print("ACS712_LIB_VERSION: ");
+  Serial.println(ACS712_LIB_VERSION);
+  
+  ACS.autoMidPoint(); // Calibrate the midpoint of ACS712
+
+ //  WiFiManager setup
+
+  pinMode(22, OUTPUT);
+  pinMode(35, INPUT);
+
+  // Uncomment to reset the internal energy counter
+  pzem.resetEnergy();
+
+  Serial.println("Setup complete");
+
+}
+
+void loop() {
+  // Read ACS712 current in mA (DC)
+  float mA = (ACS.mA_DC()/10000);
+
+  if (mA <= 0.4) {
+  int mA = 0;
+  }
+
+  if (mA > 0.4) {
+  int mA = mA + 3;
+  }
+
+  String prints= String (mA)+"A";
+  Serial.print("ACS Current (A): ");
+  Serial.println(mA);
+
+  // Read PZEM004T sensor data
+  Serial.print("Custom Address: ");
+  Serial.println(pzem.readAddress(), HEX);
+
+  // Baca data dari sensor tegangan
+  rawVoltage = analogRead(35);
+  mentah = (rawVoltage * 5) / 1023.0; // Konversi ke volt (ESP32 12-bit ADC)
+  result = mentah *(30000+7500)/7500;
+  Serial.print("raw:");
+  Serial.print(rawVoltage);
+  Serial.print("mentah:");
+  Serial.print(mentah);
+  Serial.print("volt:");
+  Serial.print(result);
+  // Read the data from the PZEM sensor
+  voltage = pzem.voltage();
+  current = pzem.current();
+  power = pzem.power();
+  energy = pzem.energy();
+  frequency = pzem.frequency();
+  pf = pzem.pf();
+
+  // Check if the data is valid
+  if (isnan(voltage)) {
+    Serial.println("Error reading voltage");
+  } else if (isnan(current)) {
+    Serial.println("Error reading current");
+  } else if (isnan(power)) {
+    Serial.println("Error reading power");
+  } else if (isnan(energy)) {
+    Serial.println("Error reading energy");
+  } else if (isnan(frequency)) {
+    Serial.println("Error reading frequency");
+  } else if (isnan(pf)) {
+    Serial.println("Error reading power factor");
+  } else {
+    // Print the values to the Serial console
+    Serial.print("Voltage: ");      Serial.print(voltage);      Serial.println("V");
+    Serial.print("Current: ");      Serial.print(current);      Serial.println("A");
+    Serial.print("Power: ");        Serial.print(power);        Serial.println("W");
+    Serial.print("Energy: ");       Serial.print(energy, 3);    Serial.println("kWh");
+    Serial.print("Frequency: ");    Serial.print(frequency, 1); Serial.println("Hz");
+    Serial.print("PF: ");           Serial.println(pf);
+   rawVoltage = analogRead(25);
+   mentah = (rawVoltage * 5) / 1023.0; // Konversi ke volt (ESP32 12-bit ADC)
+   result = mentah *(30000+7500)/7500;
+   Serial.print("raw:");
+   Serial.print(rawVoltage);
+   Serial.print("mentah:");
+   Serial.print(mentah);
+   Serial.print("volt:");
+   Serial.print(result);
+   delay(1000);
+  }
+
+  // Print voltage level from analog pin
+  Serial.print("Voltage Sensor Reading: ");
+  Serial.print(voltageLevel);
+  Serial.println(" V");
+  Serial.println();
+  
+  delay(1000);
+}
